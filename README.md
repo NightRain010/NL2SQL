@@ -114,6 +114,16 @@ uv run --project backend pytest backend/tests/ -v
 cd frontend && pnpm test
 ```
 
+## 部署到服务器
+
+代码已推送到 GitHub 后，在服务器上按 [DEPLOY.md](DEPLOY.md) 操作即可：
+
+1. `git clone` 拉取代码
+2. `cp .env.example .env` 并填写配置（DeepSeek API Key、MySQL、JWT 等）
+3. `docker compose -f docker-compose.prod.yml up -d --build` 启动
+
+访问 `http://服务器IP:10080` 即可使用。详见 [DEPLOY.md](DEPLOY.md)。
+
 ## 核心约束
 
 1. 数据库操作通过 SQLAlchemy ORM，禁止裸 SQL

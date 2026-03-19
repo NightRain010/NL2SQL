@@ -2,6 +2,61 @@
 
 镜像内**不包含**任何密钥，所有敏感配置通过服务器上的 `.env` 在运行时注入。
 
+## 0. 服务器部署完整流程（从云端拉代码）
+
+### 前置要求
+
+- 服务器已安装 **Docker** 和 **Docker Compose**
+- 可访问 GitHub（或你的代码仓库）
+
+### 步骤一：拉取代码
+
+```bash
+# 克隆仓库（替换为你的仓库地址）
+git clone https://github.com/NightRain010/NL2SQL.git
+cd NL2SQL
+```
+
+### 步骤二：配置环境变量
+
+```bash
+cp .env.example .env
+# 用 vim/nano 等编辑 .env，填写真实值（见下方「必须配置的项」）
+```
+
+### 步骤三：启动服务
+
+**方式 A：应用 + MySQL 一起部署**（推荐，首次部署）
+
+1. 编辑 `docker-compose.prod.yml`，取消注释其中的 `mysql` 服务、`depends_on`、`volumes` 相关行
+2. 确保 `.env` 中 `MYSQL_HOST=mysql`（或不填，默认即为 mysql），`MYSQL_PORT=3306`（或不填）
+3. 执行：
+
+```bash
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+**方式 B：仅应用**（MySQL 已在其它地方部署）
+
+确保 `.env` 中 `MYSQL_HOST`、`MYSQL_PORT` 指向你的 MySQL 地址，然后：
+
+```bash
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+### 步骤四：访问
+
+浏览器打开 `http://服务器IP:10080` 或 `http://你的域名:10080`。
+
+### 后续更新代码
+
+```bash
+git pull
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+---
+
 ## 1. 构建与流量优化
 
 - **多阶段构建**：后端只保留运行时；前端用 Node 构建，用 nginx 托管静态资源，最终镜像不含 Node。
@@ -20,12 +75,16 @@ cp .env.example .env
 
 必须配置的项：
 
-- `DEEPSEEK_API_KEY`：DeepSeek API 密钥
-- `DEEPSEEK_BASE_URL`：一般为 `https://api.deepseek.com`
-- `MYSQL_HOST`：MySQL 地址（同机部署填 `mysql`，否则填 IP 或主机名）
-- `MYSQL_PORT`：MySQL 端口（容器内用 `3306`，宿主机映射可用 `8306` 等）
-- `MYSQL_USER` / `MYSQL_PASSWORD` / `MYSQL_DATABASE`
-- `JWT_SECRET_KEY`：生产环境务必改为随机强密钥
+| 变量 | 说明 |
+|------|------|
+| `DEEPSEEK_API_KEY` | DeepSeek API 密钥，从 [DeepSeek 开放平台](https://platform.deepseek.com) 获取 |
+| `DEEPSEEK_BASE_URL` | 一般为 `https://api.deepseek.com` |
+| `MYSQL_HOST` | 同 compose 部署填 `mysql`，否则填 MySQL 的 IP 或主机名 |
+| `MYSQL_PORT` | 同 compose 部署填 `3306`，宿主机映射填 `8306` 等 |
+| `MYSQL_USER` | 数据库用户名，如 `root` |
+| `MYSQL_PASSWORD` | 数据库密码 |
+| `MYSQL_DATABASE` | 数据库名，默认 `nl2sql_platform` |
+| `JWT_SECRET_KEY` | 生产环境务必改为随机强密钥，可用 `openssl rand -hex 32` 生成 |
 
 ## 3. 启动方式
 
@@ -35,7 +94,7 @@ cp .env.example .env
 docker compose -f docker-compose.prod.yml up -d
 ```
 
-访问：`http://服务器IP或域名`（前端 nginx 占 80 端口）。
+访问：`http://服务器IP或域名:10080`。
 
 ### 应用 + MySQL 一起部署
 
@@ -60,7 +119,7 @@ docker compose -f docker-compose.prod.yml build
 
 | 服务   | 容器内端口 | 宿主机映射 | 说明           |
 |--------|------------|------------|----------------|
-| 前端   | 80         | 80         | 对外提供页面   |
+| 前端   | 80         | 10080      | 对外提供页面   |
 | 后端   | 8000       | 不暴露     | 仅由前端 nginx 反向代理 `/api` |
 | MySQL（可选） | 3306 | 按需映射   | 仅后端访问     |
 
