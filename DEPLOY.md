@@ -123,7 +123,23 @@ docker compose -f docker-compose.prod.yml build
 | 后端   | 8000       | 不暴露     | 仅由前端 nginx 反向代理 `/api` |
 | MySQL（可选） | 3306 | 按需映射   | 仅后端访问     |
 
-## 5. MySQL 在宿主机或其它机器时
+## 5. 10080 端口无法访问时的排查
+
+1. **在服务器本机测试**：`curl http://127.0.0.1:10080`，若返回 HTML 说明容器正常。
+2. **开放防火墙**（Linux 常见）：
+   ```bash
+   # Ubuntu/Debian (ufw)
+   sudo ufw allow 10080/tcp
+   sudo ufw reload
+   
+   # CentOS/RHEL (firewalld)
+   sudo firewall-cmd --permanent --add-port=10080/tcp
+   sudo firewall-cmd --reload
+   ```
+3. **云服务器**：在控制台的安全组/防火墙规则中添加入站规则，放行 TCP 10080。
+4. **确认端口映射**：`docker ps` 查看 `nl2sql-frontend` 是否有 `0.0.0.0:10080->80/tcp`。
+
+## 6. MySQL 在宿主机或其它机器时
 
 - 后端容器需能访问该 MySQL（网络可达）。
 - `.env` 中 `MYSQL_HOST` 填该机 IP 或主机名；若 MySQL 在宿主机，Linux 可填 `host.docker.internal`（Docker 20.10+）或宿主机内网 IP。
