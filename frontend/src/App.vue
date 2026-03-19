@@ -4,8 +4,10 @@ import { RouterView } from "vue-router";
 
 <template>
   <el-config-provider>
-    <div class="min-h-screen bg-gray-50">
-      <RouterView />
-    </div>
+    <RouterView v-slot="{ Component }">
+      <Transition name="page" mode="out-in">
+        <component :is="Component" />
+      </Transition>
+    </RouterView>
   </el-config-provider>
 </template>

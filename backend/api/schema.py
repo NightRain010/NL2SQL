@@ -6,13 +6,17 @@ from sqlalchemy import inspect as sa_inspect
 
 from backend.db.engine import get_db, engine
 from backend.db.models.schema_meta import SchemaMetadata
+from backend.api.auth import get_current_user_id
 from backend.lib.response import success
 
 router = APIRouter()
 
 
 @router.get("/tables")
-def list_tables(db: Session = Depends(get_db)):
+def list_tables(
+    _user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
     """获取所有业务表列表。"""
     tables_query = (
         db.query(
@@ -44,7 +48,11 @@ def list_tables(db: Session = Depends(get_db)):
 
 
 @router.get("/tables/{table_name}")
-def get_table_detail(table_name: str, db: Session = Depends(get_db)):
+def get_table_detail(
+    table_name: str,
+    _user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
     """获取指定表的详细结构。"""
     columns = (
         db.query(SchemaMetadata)
@@ -71,7 +79,10 @@ def get_table_detail(table_name: str, db: Session = Depends(get_db)):
 
 
 @router.post("/refresh")
-def refresh_metadata(db: Session = Depends(get_db)):
+def refresh_metadata(
+    _user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
     """重新扫描数据库表结构，刷新 schema_metadata 缓存。"""
     inspector = sa_inspect(engine)
     table_names = inspector.get_table_names()

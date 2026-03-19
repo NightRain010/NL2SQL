@@ -1,6 +1,7 @@
 import axios from "axios";
 import { ElMessage } from "element-plus";
 import { useUserStore } from "../stores/user";
+import router from "../router";
 
 const request = axios.create({
   baseURL: "/api",
@@ -25,11 +26,16 @@ request.interceptors.response.use(
     return data;
   },
   (error) => {
-    if (error.response?.status === 401) {
+    const status = error.response?.status;
+    if (status === 401) {
       const userStore = useUserStore();
       userStore.logout();
       ElMessage.error("登录已过期，请重新登录");
-      window.location.href = "/login";
+      router.push({ name: "Login" });
+    } else if (status === 403) {
+      ElMessage.error("没有权限执行此操作");
+    } else if (status && status >= 500) {
+      ElMessage.error("服务器错误，请稍后重试");
     } else {
       ElMessage.error(error.response?.data?.detail || "网络错误");
     }

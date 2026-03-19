@@ -1,6 +1,7 @@
 -- NL2SQL 查询平台 - 测试数据
 -- 注意：此脚本由 Docker 容器首次启动时自动执行（在 01_schema.sql 之后）
 
+SET NAMES utf8mb4;
 USE nl2sql_platform;
 
 -- 插入教师数据

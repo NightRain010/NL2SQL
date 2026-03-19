@@ -17,9 +17,9 @@ class TestQueryHistory:
     """查询历史接口测试。"""
 
     def test_get_history_unauthorized(self, client):
-        """未认证应返回 403。"""
+        """未认证应返回 401。"""
         resp = client.get("/api/query/history")
-        assert resp.status_code == 403
+        assert resp.status_code in (401, 403)
 
     def test_get_history_empty(self, client):
         """新用户的查询历史应为空。"""

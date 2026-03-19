@@ -21,6 +21,7 @@ backend/.venv/
 
 # pytest
 .pytest_cache/
+test.db
 htmlcov/
 .coverage
 coverage.xml

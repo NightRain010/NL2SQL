@@ -1,10 +1,14 @@
 """用户 CRUD 操作。"""
 
+import logging
 from typing import Optional
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from backend.db.models.user import User
+
+logger = logging.getLogger(__name__)
 
 
 def get_user_by_id(db: Session, user_id: int) -> Optional[User]:
@@ -23,9 +27,19 @@ def get_user_by_email(db: Session, email: str) -> Optional[User]:
 
 
 def create_user(db: Session, username: str, email: str, password_hash: str) -> User:
-    """创建新用户。"""
+    """
+    创建新用户。
+
+    Raises:
+        ValueError: 用户名或邮箱已存在时抛出。
+    """
     user = User(username=username, email=email, password_hash=password_hash)
     db.add(user)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as e:
+        db.rollback()
+        logger.warning("创建用户失败（唯一约束冲突）: %s", e)
+        raise ValueError("用户名或邮箱已存在") from e
     db.refresh(user)
     return user

@@ -79,9 +79,22 @@ def _classify_token(token: str, context: str) -> Optional[str]:
     return None
 
 
+_NAME_BLACKLIST = {
+    "可以", "这个", "那个", "什么", "怎么", "如何", "为什么", "因为", "所以",
+    "已经", "正在", "然后", "但是", "虽然", "或者", "而且", "以及", "并且",
+    "如果", "那么", "不是", "就是", "应该", "能够", "可能", "需要", "希望",
+    "其中", "一些", "这些", "那些", "自己", "我们", "他们", "她们", "大家",
+    "老师", "同学", "学生", "数据", "数学", "语文", "英语", "物理", "化学",
+    "生物", "计算机", "编程", "数据库", "算法", "平均分", "最高分", "最低分",
+    "总分", "人数", "及格率", "成绩", "分数", "学分", "查询", "显示", "列出",
+}
+
+
 def _looks_like_person_name(token: str) -> bool:
-    """粗略判断 token 是否像人名（2-4 字，不含数字和标点）。"""
-    return bool(re.fullmatch(r"[\u4e00-\u9fff]{2,4}", token))
+    """判断 token 是否像人名（2-4 汉字，排除常见停用词和学科名）。"""
+    if not re.fullmatch(r"[\u4e00-\u9fff]{2,4}", token):
+        return False
+    return token not in _NAME_BLACKLIST
 
 
 def _extract_time_entities(text: str) -> list[Entity]:

@@ -1,21 +1,21 @@
 import request from "./request";
-import type { ApiResponse } from "../types";
+import type { ApiResponse, AuthResponse, UserInfo } from "../types";
 
-/** 用户注册 */
+/** 用户注册。 */
 export function register(data: {
   username: string;
   email: string;
   password: string;
 }) {
-  return request.post<unknown, ApiResponse>("/auth/register", data);
+  return request.post<unknown, ApiResponse<AuthResponse>>("/auth/register", data);
 }
 
-/** 用户登录 */
+/** 用户登录。 */
 export function login(data: { username: string; password: string }) {
-  return request.post<unknown, ApiResponse>("/auth/login", data);
+  return request.post<unknown, ApiResponse<AuthResponse>>("/auth/login", data);
 }
 
-/** 获取当前用户信息 */
+/** 获取当前用户信息。 */
 export function getMe() {
-  return request.get<unknown, ApiResponse>("/auth/me");
+  return request.get<unknown, ApiResponse<UserInfo>>("/auth/me");
 }

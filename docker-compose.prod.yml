@@ -1,0 +1,64 @@
+# 生产部署：前端 + 后端，密钥通过 .env 注入，不写入镜像
+# 用法：在服务器上配置 .env 后执行
+#   docker compose -f docker-compose.prod.yml up -d
+# 若需连同 MySQL 一起部署，可加上：docker compose -f docker-compose.prod.yml -f docker/docker-compose.yml up -d
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    image: nl2sql-backend:latest
+    container_name: nl2sql-backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # 若与 MySQL 同 compose 部署，用服务名
+      MYSQL_HOST: ${MYSQL_HOST:-mysql}
+      MYSQL_PORT: ${MYSQL_PORT:-3306}
+    expose:
+      - "8000"
+    # 若 MySQL 在本 compose 中，取消下一行注释
+    # depends_on:
+    #   mysql:
+    #     condition: service_healthy
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    image: nl2sql-frontend:latest
+    container_name: nl2sql-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+  # 可选：若服务器上未单独部署 MySQL，可启用下方 mysql 服务
+  # mysql:
+  #   image: mysql:8.0.30
+  #   container_name: nl2sql-mysql
+  #   restart: unless-stopped
+  #   env_file: .env
+  #   environment:
+  #     MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD}
+  #     MYSQL_DATABASE: ${MYSQL_DATABASE:-nl2sql_platform}
+  #   volumes:
+  #     - mysql_data:/var/lib/mysql
+  #     - ./docker/init:/docker-entrypoint-initdb.d
+  #   command:
+  #     - --character-set-server=utf8mb4
+  #     - --collation-server=utf8mb4_unicode_ci
+  #     - --character-set-client-handshake=FALSE
+  #     - --init-connect=SET NAMES utf8mb4
+  #   healthcheck:
+  #     test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+  #     interval: 5s
+  #     timeout: 3s
+  #     retries: 5
+  #   expose:
+  #     - "3306"
+
+# volumes:
+#   mysql_data:

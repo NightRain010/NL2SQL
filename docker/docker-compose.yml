@@ -2,11 +2,11 @@ version: "3.8"
 
 services:
   mysql:
-    image: mysql:8.0
+    image: mysql:8.0.30
     container_name: nl2sql-mysql
     restart: unless-stopped
     ports:
-      - "3306:3306"
+      - "8306:3306"
     environment:
       MYSQL_ROOT_PASSWORD: nl2sql_root_password
       MYSQL_DATABASE: nl2sql_platform
@@ -18,6 +18,8 @@ services:
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
+      - --character-set-client-handshake=FALSE
+      - --init-connect=SET NAMES utf8mb4
 
 volumes:
   mysql_data:

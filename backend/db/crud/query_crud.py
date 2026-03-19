@@ -1,10 +1,16 @@
 """查询历史 CRUD 操作。"""
 
+import logging
 from typing import Optional
 
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from backend.db.models.query_history import QueryHistory
+
+logger = logging.getLogger(__name__)
+
+_MAX_PAGE_SIZE = 100
 
 
 def create_query_record(
@@ -21,7 +27,12 @@ def create_query_record(
         status="pending",
     )
     db.add(record)
-    db.commit()
+    try:
+        db.commit()
+    except SQLAlchemyError as e:
+        db.rollback()
+        logger.error("创建查询记录失败: %s", e)
+        raise
     db.refresh(record)
     return record
 
@@ -49,7 +60,12 @@ def update_query_result(
         record.error_message = error_message
     if execution_ms is not None:
         record.execution_ms = execution_ms
-    db.commit()
+    try:
+        db.commit()
+    except SQLAlchemyError as e:
+        db.rollback()
+        logger.error("更新查询记录 %d 失败: %s", query_id, e)
+        raise
     db.refresh(record)
     return record
 
@@ -68,6 +84,7 @@ def list_queries_by_user(
     size: int = 20,
 ) -> tuple[list[QueryHistory], int]:
     """分页查询用户的查询历史。返回 (记录列表, 总数)。"""
+    size = min(size, _MAX_PAGE_SIZE)
     query = db.query(QueryHistory).filter(QueryHistory.user_id == user_id)
     if status:
         query = query.filter(QueryHistory.status == status)

@@ -1,10 +1,18 @@
 """结果格式化 Agent，将 SQL 查询结果转换为前端可展示的结构化数据。"""
 
+import logging
+import time
 from typing import Optional
 
 from openai import OpenAI
 
 from backend.config import settings
+
+logger = logging.getLogger(__name__)
+
+_MAX_RETRIES = 3
+_RETRY_BASE_DELAY = 1.0
+_REQUEST_TIMEOUT = 30
 from backend.agents.state import (
     AgentState,
     FormattedResult,
@@ -91,29 +99,37 @@ def _generate_summary(raw_result: list[dict], user_input: str) -> str:
     else:
         preview = str(raw_result[:3]) + f"... 共 {len(raw_result)} 条记录"
 
-    try:
-        client = OpenAI(
-            api_key=settings.DEEPSEEK_API_KEY,
-            base_url=settings.DEEPSEEK_BASE_URL,
-        )
-        response = client.chat.completions.create(
-            model=settings.DEEPSEEK_MODEL,
-            messages=[
-                {
-                    "role": "system",
-                    "content": "你是一个数据分析助手。请用一句简洁的中文总结以下查询结果。",
-                },
-                {
-                    "role": "user",
-                    "content": f"用户问题: {user_input}\n查询结果: {preview}",
-                },
-            ],
-            temperature=0.3,
-            max_tokens=200,
-        )
-        return response.choices[0].message.content or f"共返回 {len(raw_result)} 条记录。"
-    except Exception:
-        return f"查询完成，共返回 {len(raw_result)} 条记录。"
+    client = OpenAI(
+        api_key=settings.DEEPSEEK_API_KEY,
+        base_url=settings.DEEPSEEK_BASE_URL,
+        timeout=_REQUEST_TIMEOUT,
+    )
+
+    for attempt in range(_MAX_RETRIES):
+        try:
+            response = client.chat.completions.create(
+                model=settings.DEEPSEEK_MODEL,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "你是一个数据分析助手。请用一句简洁的中文总结以下查询结果。",
+                    },
+                    {
+                        "role": "user",
+                        "content": f"用户问题: {user_input}\n查询结果: {preview}",
+                    },
+                ],
+                temperature=0.3,
+                max_tokens=200,
+            )
+            return response.choices[0].message.content or f"共返回 {len(raw_result)} 条记录。"
+        except Exception as e:
+            if attempt < _MAX_RETRIES - 1:
+                delay = _RETRY_BASE_DELAY * (2 ** attempt)
+                logger.warning("DeepSeek 摘要生成第 %d 次重试，等待 %.1fs: %s", attempt + 1, delay, e)
+                time.sleep(delay)
+
+    return f"查询完成，共返回 {len(raw_result)} 条记录。"
 
 
 def _suggest_chart(

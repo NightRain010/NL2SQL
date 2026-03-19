@@ -36,6 +36,9 @@ router.beforeEach((to) => {
   if (to.meta.requiresAuth && !userStore.token) {
     return { name: "Login" };
   }
+  if (to.name === "Login" && userStore.token) {
+    return { name: "Query" };
+  }
 });
 
 export default router;

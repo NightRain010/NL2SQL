@@ -32,8 +32,8 @@ class RegisterRequest(BaseModel):
 class LoginRequest(BaseModel):
     """登录请求。"""
 
-    username: str
-    password: str
+    username: str = Field(..., min_length=1, max_length=64)
+    password: str = Field(..., min_length=1, max_length=128)
 
 
 class UserInfo(BaseModel):
@@ -56,7 +56,10 @@ def get_current_user_id(
     user_id = payload.get("sub")
     if user_id is None:
         raise HTTPException(status_code=401, detail="Token 中缺少用户信息")
-    return int(user_id)
+    try:
+        return int(user_id)
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=401, detail="Token 中用户信息格式错误")
 
 
 @router.post("/register")

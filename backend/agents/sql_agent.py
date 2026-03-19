@@ -1,10 +1,19 @@
 """SQL 生成 Agent，调用 DeepSeek 生成 SELECT 语句。"""
 
+import logging
+import time
+
 from openai import OpenAI
 
 from backend.config import settings
 from backend.agents.state import AgentState, SQLGeneratorOutput, SchemaInfo
 from backend.lib.sql_validator import validate_sql
+
+logger = logging.getLogger(__name__)
+
+_MAX_RETRIES = 3
+_RETRY_BASE_DELAY = 1.0
+_REQUEST_TIMEOUT = 30
 
 
 _SYSTEM_PROMPT = """你是一个专业的 SQL 生成助手。根据用户的自然语言问题和数据库表结构信息，生成准确的 MySQL SELECT 查询语句。
@@ -28,7 +37,15 @@ def sql_agent_node(state: AgentState) -> dict:
         更新后的状态字段。
     """
     user_input = state["user_input"]
-    schema_info: SchemaInfo = state["schema_info"]  # type: ignore[assignment]
+    schema_info: SchemaInfo | None = state.get("schema_info")  # type: ignore[assignment]
+
+    if schema_info is None:
+        return {
+            "generated_sql": None,
+            "sql_valid": False,
+            "current_step": "generate_sql",
+            "error": "未获取到表结构信息，无法生成 SQL",
+        }
 
     try:
         output = _generate_sql(user_input, schema_info)
@@ -48,10 +65,11 @@ def sql_agent_node(state: AgentState) -> dict:
 
 
 def _generate_sql(user_input: str, schema_info: SchemaInfo) -> SQLGeneratorOutput:
-    """调用 DeepSeek API 生成 SQL 并校验。"""
+    """调用 DeepSeek API 生成 SQL 并校验，含指数退避重试。"""
     client = OpenAI(
         api_key=settings.DEEPSEEK_API_KEY,
         base_url=settings.DEEPSEEK_BASE_URL,
+        timeout=_REQUEST_TIMEOUT,
     )
 
     user_prompt = (
@@ -60,15 +78,27 @@ def _generate_sql(user_input: str, schema_info: SchemaInfo) -> SQLGeneratorOutpu
         f"请生成对应的 SELECT 查询语句。"
     )
 
-    response = client.chat.completions.create(
-        model=settings.DEEPSEEK_MODEL,
-        messages=[
-            {"role": "system", "content": _SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt},
-        ],
-        temperature=0.1,
-        max_tokens=1024,
-    )
+    last_error: Exception | None = None
+    for attempt in range(_MAX_RETRIES):
+        try:
+            response = client.chat.completions.create(
+                model=settings.DEEPSEEK_MODEL,
+                messages=[
+                    {"role": "system", "content": _SYSTEM_PROMPT},
+                    {"role": "user", "content": user_prompt},
+                ],
+                temperature=0.1,
+                max_tokens=1024,
+            )
+            break
+        except Exception as e:
+            last_error = e
+            if attempt < _MAX_RETRIES - 1:
+                delay = _RETRY_BASE_DELAY * (2 ** attempt)
+                logger.warning("DeepSeek SQL 生成第 %d 次重试，等待 %.1fs: %s", attempt + 1, delay, e)
+                time.sleep(delay)
+    else:
+        raise last_error  # type: ignore[misc]
 
     raw_sql = response.choices[0].message.content or ""
     sql_query = _extract_sql(raw_sql)

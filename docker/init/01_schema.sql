@@ -1,6 +1,7 @@
 -- NL2SQL 查询平台 - 建表脚本
 -- 注意：此脚本由 Docker 容器首次启动时自动执行
 
+SET NAMES utf8mb4;
 USE nl2sql_platform;
 
 -- 用户表

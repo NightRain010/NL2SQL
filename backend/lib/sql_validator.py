@@ -1,8 +1,9 @@
-"""SQL 白名单校验器，确保 AI 生成的 SQL 仅包含 SELECT 操作。"""
+"""SQL 白名单校验器，确保 AI 生成的 SQL 仅包含安全的 SELECT 操作。"""
 
 import re
 from typing import Optional
 
+_MAX_SQL_LENGTH = 4096
 
 _FORBIDDEN_KEYWORDS = [
     "INSERT",
@@ -22,11 +23,20 @@ _FORBIDDEN_KEYWORDS = [
     "INTO DUMPFILE",
     "LOAD_FILE",
     "LOAD DATA",
+    "UNION",
 ]
 
 _FORBIDDEN_PATTERN = re.compile(
     r"\b(" + "|".join(_FORBIDDEN_KEYWORDS) + r")\b",
     re.IGNORECASE,
+)
+
+_INFORMATION_SCHEMA_PATTERN = re.compile(
+    r"\bINFORMATION_SCHEMA\b", re.IGNORECASE
+)
+
+_SYSTEM_TABLE_PATTERN = re.compile(
+    r"\b(mysql|performance_schema|sys)\s*\.", re.IGNORECASE
 )
 
 
@@ -44,6 +54,13 @@ def validate_sql(sql: str) -> tuple[bool, list[str]]:
         errors.append("SQL 语句为空")
         return False, errors
 
+    if len(stripped) > _MAX_SQL_LENGTH:
+        errors.append(f"SQL 语句过长（最大 {_MAX_SQL_LENGTH} 字符）")
+        return False, errors
+
+    if ";" in stripped:
+        errors.append("禁止多语句执行（不允许分号分隔多条 SQL）")
+
     if not re.match(r"^\s*SELECT\b", stripped, re.IGNORECASE):
         errors.append("SQL 必须以 SELECT 开头")
 
@@ -51,6 +68,12 @@ def validate_sql(sql: str) -> tuple[bool, list[str]]:
     if forbidden_matches:
         unique_matches = sorted(set(m.upper() for m in forbidden_matches))
         errors.append(f"包含禁止的关键词: {', '.join(unique_matches)}")
+
+    if _INFORMATION_SCHEMA_PATTERN.search(stripped):
+        errors.append("禁止访问 INFORMATION_SCHEMA")
+
+    if _SYSTEM_TABLE_PATTERN.search(stripped):
+        errors.append("禁止访问系统数据库（mysql/performance_schema/sys）")
 
     if _detect_select_into(stripped):
         errors.append("禁止使用 SELECT ... INTO 语法")
