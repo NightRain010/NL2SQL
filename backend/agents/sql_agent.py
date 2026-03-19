@@ -8,22 +8,13 @@ from openai import OpenAI
 from backend.config import settings
 from backend.agents.state import AgentState, SQLGeneratorOutput, SchemaInfo
 from backend.lib.sql_validator import validate_sql
+from backend.prompts import SQL_SYSTEM_PROMPT, build_sql_user_prompt
 
 logger = logging.getLogger(__name__)
 
 _MAX_RETRIES = 3
 _RETRY_BASE_DELAY = 1.0
 _REQUEST_TIMEOUT = 30
-
-
-_SYSTEM_PROMPT = """你是一个专业的 SQL 生成助手。根据用户的自然语言问题和数据库表结构信息，生成准确的 MySQL SELECT 查询语句。
-
-规则：
-1. 只能生成 SELECT 语句，禁止任何修改数据的操作
-2. 使用标准 MySQL 语法
-3. 字段名和表名使用反引号包裹
-4. 对中文值使用 UTF-8 编码
-5. 仅输出 SQL 语句，不要输出任何解释文字"""
 
 
 def sql_agent_node(state: AgentState) -> dict:
@@ -72,11 +63,7 @@ def _generate_sql(user_input: str, schema_info: SchemaInfo) -> SQLGeneratorOutpu
         timeout=_REQUEST_TIMEOUT,
     )
 
-    user_prompt = (
-        f"用户问题: {user_input}\n\n"
-        f"数据库结构:\n{schema_info.context_summary}\n\n"
-        f"请生成对应的 SELECT 查询语句。"
-    )
+    user_prompt = build_sql_user_prompt(user_input, schema_info.context_summary)
 
     last_error: Exception | None = None
     for attempt in range(_MAX_RETRIES):
@@ -84,7 +71,7 @@ def _generate_sql(user_input: str, schema_info: SchemaInfo) -> SQLGeneratorOutpu
             response = client.chat.completions.create(
                 model=settings.DEEPSEEK_MODEL,
                 messages=[
-                    {"role": "system", "content": _SYSTEM_PROMPT},
+                    {"role": "system", "content": SQL_SYSTEM_PROMPT},
                     {"role": "user", "content": user_prompt},
                 ],
                 temperature=0.1,

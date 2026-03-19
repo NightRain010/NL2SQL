@@ -20,6 +20,7 @@
 backend/          Python 后端
   api/            FastAPI 路由（auth/query/schema/system），全部需认证
   agents/         LangGraph Agent（schema_agent/sql_agent/formatter_agent），含重试机制
+  prompts/       所有 LLM 提示词（sql/formatter），统一管理
   nlp/            Jieba 分词 + 意图识别（含否定词处理）+ 实体提取
   db/             SQLAlchemy ORM（models/ + crud/），含异常处理
   lib/            工具函数（sql_validator 增强版/security/response）

@@ -7,6 +7,7 @@ from typing import Optional
 from openai import OpenAI
 
 from backend.config import settings
+from backend.prompts import FORMATTER_SUMMARY_SYSTEM_PROMPT, build_summary_user_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -112,11 +113,11 @@ def _generate_summary(raw_result: list[dict], user_input: str) -> str:
                 messages=[
                     {
                         "role": "system",
-                        "content": "你是一个数据分析助手。请用一句简洁的中文总结以下查询结果。",
+                        "content": FORMATTER_SUMMARY_SYSTEM_PROMPT,
                     },
                     {
                         "role": "user",
-                        "content": f"用户问题: {user_input}\n查询结果: {preview}",
+                        "content": build_summary_user_prompt(user_input, preview),
                     },
                 ],
                 temperature=0.3,
